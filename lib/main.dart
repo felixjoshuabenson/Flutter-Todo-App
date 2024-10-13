@@ -39,6 +39,12 @@ class _TodoListState extends State<TodoList> {
     _textFieldController.clear();
   }
 
+  void _editTodoItem(Todo todo, String newName) {
+    setState(() {
+      todo.name = newName;
+    });
+  }
+
   void _handleTodoChange(Todo todo) {
     setState(() {
       todo.completed = !todo.completed;
@@ -63,18 +69,19 @@ class _TodoListState extends State<TodoList> {
           return TodoItem(
               todo: todo,
               onTodoChanged: _handleTodoChange,
-              removeTodo: _deleteTodo);
+              removeTodo: _deleteTodo,
+              editTodo: _editTodoItem);
         }).toList(),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _displayDialog(),
+        onPressed: () => _displayAddDialog(),
         tooltip: 'Add a Todo',
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  Future<void> _displayDialog() async {
+  Future<void> _displayAddDialog() async {
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -115,6 +122,49 @@ class _TodoListState extends State<TodoList> {
       },
     );
   }
+
+  Future<void> _displayEditDialog(Todo todo) async {
+    _textFieldController.text = todo.name; // Prefill with the current todo name
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Edit todo'),
+          content: TextField(
+            controller: _textFieldController,
+            decoration: const InputDecoration(hintText: 'Edit your todo'),
+            autofocus: true,
+          ),
+          actions: <Widget>[
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _editTodoItem(todo, _textFieldController.text);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class Todo {
@@ -124,15 +174,17 @@ class Todo {
 }
 
 class TodoItem extends StatelessWidget {
-  TodoItem(
-      {required this.todo,
-      required this.onTodoChanged,
-      required this.removeTodo})
-      : super(key: ObjectKey(todo));
+  TodoItem({
+    required this.todo,
+    required this.onTodoChanged,
+    required this.removeTodo,
+    required this.editTodo,
+  }) : super(key: ObjectKey(todo));
 
   final Todo todo;
   final void Function(Todo todo) onTodoChanged;
   final void Function(Todo todo) removeTodo;
+  final void Function(Todo todo, String newName) editTodo;
 
   TextStyle? _getTextStyle(bool checked) {
     if (!checked) return null;
@@ -163,10 +215,16 @@ class TodoItem extends StatelessWidget {
         ),
         IconButton(
           iconSize: 30,
-          icon: const Icon(
-            Icons.delete,
-            color: Colors.red,
-          ),
+          icon: const Icon(Icons.edit, color: Colors.blue),
+          alignment: Alignment.centerRight,
+          onPressed: () {
+            // Open edit dialog
+            _displayEditDialog(context, todo);
+          },
+        ),
+        IconButton(
+          iconSize: 30,
+          icon: const Icon(Icons.delete, color: Colors.red),
           alignment: Alignment.centerRight,
           onPressed: () {
             removeTodo(todo);
@@ -174,5 +232,10 @@ class TodoItem extends StatelessWidget {
         ),
       ]),
     );
+  }
+
+  void _displayEditDialog(BuildContext context, Todo todo) {
+    // Pass the editTodo function from the parent widget to edit the todo
+    (context.findAncestorStateOfType<_TodoListState>())?._displayEditDialog(todo);
   }
 }
